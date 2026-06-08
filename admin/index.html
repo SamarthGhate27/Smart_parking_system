@@ -1,0 +1,844 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ParkPro.in | Premium Parking Management Dashboard</title>
+  <!-- Google Fonts - Plus Jakarta Sans -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <!-- Supabase Client SDK -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="app-container">
+    <!-- Sidebar Panel -->
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-icon">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9C18.7 10.6 16 10 16 10s-1.3-1.4-2.2-2.3c-.5-.4-1.1-.7-1.8-.7H5c-.6 0-1.1.4-1.4.9l-1.4 2.9A3.7 3.7 0 0 0 2 12v4c0 .6.4 1 1 1h2"/><circle cx="7" cy="17" r="2"/><path d="M9 17h6"/><circle cx="17" cy="17" r="2"/></svg>
+        </div>
+        <div class="brand-text">
+          <h1>ParkPro<span>.in</span></h1>
+          <span class="brand-tag">Smart Kiosk Console</span>
+        </div>
+      </div>
+
+      <!-- Cockpit Telemetry Master Gauge -->
+      <div class="telemetry-panel glass-card">
+        <div class="master-gauge-wrapper">
+          <svg class="master-gauge-svg" viewBox="0 0 100 100">
+            <!-- Background circle -->
+            <circle class="gauge-bg" cx="50" cy="50" r="42" stroke="rgba(255,255,255,0.03)" stroke-width="6" fill="none"></circle>
+            <!-- Progress circle -->
+            <circle class="gauge-progress" id="occupancy-gauge" cx="50" cy="50" r="42" stroke="url(#cyan-glow-grad)" stroke-width="6" stroke-dasharray="264" stroke-dashoffset="264" stroke-linecap="round" fill="none" transform="rotate(-90 50 50)"></circle>
+            <!-- Gradient definition -->
+            <defs>
+              <linearGradient id="cyan-glow-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stop-color="#00f2fe" />
+                <stop offset="100%" stop-color="#4f46e5" />
+              </linearGradient>
+            </defs>
+          </svg>
+          <div class="gauge-center-text">
+            <span class="gauge-percentage" id="occupancy-pct">0%</span>
+            <span class="gauge-label">OCCUPIED</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Secondary Cockpit Stats -->
+      <div class="metrics-grid">
+        <div class="metric-card available" id="metric-available-card">
+          <div class="metric-header">
+            <span class="metric-title">Available</span>
+            <span class="status-dot cyan"></span>
+          </div>
+          <div class="metric-value-container">
+            <span class="metric-value" id="metric-available">320</span>
+            <span class="metric-unit">slots</span>
+          </div>
+        </div>
+        
+        <div class="metric-card reserved" id="metric-reserved-card">
+          <div class="metric-header">
+            <span class="metric-title">Reserved</span>
+            <span class="status-dot violet"></span>
+          </div>
+          <div class="metric-value-container">
+            <span class="metric-value" id="metric-reserved">0</span>
+            <span class="metric-unit">slots</span>
+          </div>
+        </div>
+
+        <div class="metric-card revenue operator-only" id="metric-revenue-card" style="grid-column: 1 / -1;">
+          <div class="metric-header">
+            <span class="metric-title">Revenue (Today)</span>
+            <span class="status-dot amber"></span>
+          </div>
+          <div class="metric-value-container">
+            <span class="metric-currency">₹</span>
+            <span class="metric-value" id="metric-revenue">0</span>
+            <span class="metric-unit">collected</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Customer Self-Tracking Sidebar Card -->
+      <div class="form-container glass-card customer-only" id="customer-tracker-panel">
+        <h3 class="form-heading">
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          Track My Vehicle
+        </h3>
+        <form id="customer-track-form" autocomplete="off">
+          <div class="input-group">
+            <label for="cust-track-plate">Enter Vehicle Number</label>
+            <input type="text" id="cust-track-plate" placeholder="e.g. DL 3C AY 4912" required style="text-transform: uppercase;">
+            <span class="input-hint">Locate your slot, view timer &amp; pay bill</span>
+          </div>
+          <button type="submit" class="btn btn-primary btn-full-width">
+            <span>Verify &amp; Track</span>
+          </button>
+          <button type="button" id="btn-cust-clear-track" class="btn btn-secondary btn-full-width btn-sm" style="display: none; margin-top: 0.5rem;">
+            <span>Stop Tracking</span>
+          </button>
+        </form>
+      </div>
+
+      <!-- Quick Check-In / Reservation Form -->
+      <div class="form-container glass-card operator-only">
+        <h3 class="form-heading">
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
+          Quick Action
+        </h3>
+        
+        <form id="quick-action-form" autocomplete="off">
+          <div class="input-group">
+            <label for="vehicle-plate">Vehicle Plate Number <span class="required">*</span></label>
+            <input type="text" id="vehicle-plate" placeholder="e.g. DL 3C AC 1234" required style="text-transform: uppercase;">
+            <span class="input-hint">Enter standard Indian plate code</span>
+          </div>
+
+          <div class="input-row">
+            <div class="input-group">
+              <label for="vehicle-type">Vehicle Type</label>
+              <div class="custom-select-wrapper">
+                <select id="vehicle-type">
+                  <option value="Car">🚗 Car (₹50/hr)</option>
+                  <option value="Bike">🏍️ Bike (₹20/hr)</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="input-group">
+              <label for="action-type">Action</label>
+              <div class="custom-select-wrapper">
+                <select id="action-type">
+                  <option value="checkin">Check-In</option>
+                  <option value="reserve">Reserve</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <div class="input-group" id="reservation-name-group" style="display: none;">
+            <label for="customer-name">Customer Name</label>
+            <input type="text" id="customer-name" placeholder="e.g. Rohit Sharma">
+          </div>
+
+          <div class="input-row">
+            <div class="input-group">
+              <label for="select-floor">Floor</label>
+              <div class="custom-select-wrapper">
+                <select id="select-floor">
+                  <option value="1">Floor 1</option>
+                  <option value="2">Floor 2</option>
+                  <option value="3">Floor 3</option>
+                  <option value="4">Floor 4</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="input-group">
+              <label for="select-slot">Slot Assignment</label>
+              <div class="custom-select-wrapper">
+                <select id="select-slot">
+                  <option value="auto">🔥 Auto-Optimal</option>
+                  <!-- Dynamically populated by JS based on type and floor -->
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <button type="submit" id="btn-submit-action" class="btn btn-primary btn-full-width">
+            <span>Execute Check-In</span>
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+          </button>
+        </form>
+      </div>
+
+      <div class="sidebar-footer">
+        <p>Real-Time Parking OS v1.2.0</p>
+        <span class="indicator-glow online">System Online</span>
+      </div>
+    </aside>
+
+    <!-- Main Content Area -->
+    <main class="main-content">
+      <!-- Top Bar: Clock and Global Actions -->
+      <header class="top-bar">
+        <!-- Global Search Box (Operator Only) -->
+        <div class="search-box operator-only">
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <input type="text" id="global-search" placeholder="Quick search by plate number, customer name, slot ID...">
+        </div>
+
+        <!-- Guest Portal Welcome Header (Customer Only) -->
+        <div class="customer-welcome customer-only">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--accent-color)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="filter: drop-shadow(0 0 8px rgba(6, 182, 212, 0.4));"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+          <span style="font-weight: 800; font-size: 0.95rem; letter-spacing: 0.5px; text-transform: uppercase;">Guest Self-Service Console</span>
+        </div>
+
+        <!-- Console Mode Switcher (Tesla Cockpit Toggle) -->
+        <div class="console-mode-switcher">
+          <button class="switcher-btn active" id="btn-mode-operator" data-role="Operator">
+            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+            Operator
+          </button>
+          <button class="switcher-btn" id="btn-mode-customer" data-role="Customer">
+            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+            Guest Portal
+          </button>
+        </div>
+
+        <div class="top-bar-right">
+          <!-- Quick Demo Actions -->
+          <button id="btn-demo-data" class="btn btn-secondary btn-sm operator-only">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
+            Generate Demo State
+          </button>
+
+          <!-- Current Time Display -->
+          <div class="time-widget">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            <span id="live-clock">26 May 2026, 10:21 PM</span>
+          </div>
+        </div>
+      </header>
+
+      <!-- Navigation Tabs -->
+      <nav class="navigation-tabs">
+        <button class="nav-tab active" data-tab="floor-map-tab">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+          Interactive Slot Grid Map
+        </button>
+        <button class="nav-tab operator-only" data-tab="transaction-tab">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+          Transaction History Logs
+        </button>
+        <button class="nav-tab operator-only" data-tab="settings-tab">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+          Settings &amp; API Guide
+        </button>
+      </nav>
+
+      <!-- Active Tab Contents -->
+      <section class="tab-panel active" id="floor-map-tab">
+        <!-- Floor Tabs Controls -->
+        <div class="floor-selector-bar">
+          <div class="floor-tabs">
+            <button class="floor-tab active" data-floor="1">1st Floor <span class="floor-badge" id="floor-badge-1">80 Available</span></button>
+            <button class="floor-tab" data-floor="2">2nd Floor <span class="floor-badge" id="floor-badge-2">80 Available</span></button>
+            <button class="floor-tab" data-floor="3">3rd Floor <span class="floor-badge" id="floor-badge-3">80 Available</span></button>
+            <button class="floor-tab" data-floor="4">4th Floor <span class="floor-badge" id="floor-badge-4">80 Available</span></button>
+          </div>
+
+          <!-- Quick Filters inside Tab -->
+          <div class="filter-controls">
+            <button class="filter-pill active" data-filter="all">All Slots</button>
+            <button class="filter-pill" data-filter="Car">🚗 Cars</button>
+            <button class="filter-pill" data-filter="Bike">🏍️ Bikes</button>
+            <button class="filter-pill" data-filter="Available">🟢 Available</button>
+            <button class="filter-pill" data-filter="Occupied">🔴 Occupied</button>
+            <button class="filter-pill" data-filter="Reserved">🔵 Reserved</button>
+          </div>
+        </div>
+
+        <!-- Legend -->
+        <div class="floor-legend-container">
+          <div class="legend-item"><span class="legend-dot available"></span> Available Slot</div>
+          <div class="legend-item"><span class="legend-dot occupied"></span> Occupied (Billing Started)</div>
+          <div class="legend-item"><span class="legend-dot reserved"></span> Reserved Slot</div>
+          <div class="legend-item"><span class="legend-dot buffer"></span> Buffer (<=30s, Free)</div>
+        </div>
+
+        <!-- Map Container -->
+        <div class="map-wrapper glass-card">
+          <div class="map-header">
+            <h2 id="current-floor-title">Floor 1 Layout</h2>
+            <div class="map-stats">
+              <span class="stat-badge"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9C18.7 10.6 16 10 16 10s-1.3-1.4-2.2-2.3c-.5-.4-1.1-.7-1.8-.7H5c-.6 0-1.1.4-1.4.9l-1.4 2.9A3.7 3.7 0 0 0 2 12v4c0 .6.4 1 1 1h2"/><circle cx="7" cy="17" r="2"/><path d="M9 17h6"/><circle cx="17" cy="17" r="2"/></svg> <span id="floor-car-stats">40 Cars</span></span>
+              <span class="stat-badge"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5.5 17.5a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5zM18.5 17.5a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5zM12 12V8h2"/></svg> <span id="floor-bike-stats">40 Bikes</span></span>
+            </div>
+          </div>
+          
+          <!-- High Performance Grid -->
+          <div class="slots-grid" id="slots-grid-container">
+            <!-- 80 slots dynamically rendered by app.js -->
+          </div>
+        </div>
+      </section>
+
+      <section class="tab-panel operator-only" id="transaction-tab">
+        <div class="panel-header">
+          <h2>Completed Transactions Log</h2>
+          <button id="btn-export-csv" class="btn btn-secondary btn-sm">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+            Export Sheet
+          </button>
+        </div>
+
+        <div class="glass-card table-wrapper">
+          <table class="data-table" id="transactions-table">
+            <thead>
+              <tr>
+                <th>Receipt ID</th>
+                <th>Plate Number</th>
+                <th>Type</th>
+                <th>Slot</th>
+                <th>Duration</th>
+                <th>Total Paid</th>
+                <th>Payment Mode</th>
+                <th>Check-Out Date</th>
+              </tr>
+            </thead>
+            <tbody id="transactions-tbody">
+              <tr>
+                <td colspan="8" class="empty-state">No transactions recorded today yet. Check-out a vehicle to record a payment.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="tab-panel operator-only" id="settings-tab">
+        <div class="settings-grid">
+          <!-- Dynamic Configurations Card -->
+          <div class="glass-card settings-card">
+            <h2>
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+              Parking Customization Settings
+            </h2>
+            <form id="settings-form">
+              <div class="settings-section">
+                <h3>💵 Hourly Pricing Rates (INR)</h3>
+                <div class="input-row">
+                  <div class="input-group">
+                    <label for="rate-car">Car Rate (₹/hr)</label>
+                    <input type="number" id="rate-car" min="0" value="50" required>
+                  </div>
+                  <div class="input-group">
+                    <label for="rate-bike">Bike Rate (₹/hr)</label>
+                    <input type="number" id="rate-bike" min="0" value="20" required>
+                  </div>
+                </div>
+              </div>
+
+              <div class="settings-section">
+                <h3>🚗 Slot Capacities Per Floor</h3>
+                <p class="settings-note">Note: Resizes your layout. Maximum 80 total slots per floor to maintain layout stability.</p>
+                <div class="input-row">
+                  <div class="input-group">
+                    <label for="capacity-car">Car Slots per Floor</label>
+                    <input type="number" id="capacity-car" min="1" max="60" value="40" required>
+                  </div>
+                  <div class="input-group">
+                    <label for="capacity-bike">Bike Slots per Floor</label>
+                    <input type="number" id="capacity-bike" min="1" max="60" value="40" required>
+                  </div>
+                </div>
+                <div class="input-group font-bold">
+                  Total slots calculated per floor: <span id="calculated-total-slots" class="text-primary">80 slots</span>
+                </div>
+              </div>
+
+              <div class="settings-actions">
+                <button type="submit" class="btn btn-primary">Save Configurations</button>
+                <button type="button" id="btn-reset-db" class="btn btn-danger">Reset All Database</button>
+              </div>
+            </form>
+          </div>
+
+          <!-- Free Developer Gateway Guide -->
+          <div class="glass-card settings-card api-guide-card">
+            <h2>
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
+              Free Payment Gateway Guide (India)
+            </h2>
+            <div class="guide-scrollable">
+              <p class="guide-intro">To replace our simulated payment flow with a live, real checkout system, you can use these zero-cost developer setups in India:</p>
+              
+              <div class="guide-accordion-item">
+                <div class="guide-accordion-header">
+                  <span class="icon">💳</span>
+                  <h4>Option 1: Razorpay Standard (Recommended for UPI/Cards)</h4>
+                </div>
+                <div class="guide-accordion-body">
+                  <ol>
+                    <li>Sign up for a free developer account at <strong>razorpay.com</strong>.</li>
+                    <li>Verify your email to enter <strong>Test Mode</strong> instantly. No company registration or KYC is required to test!</li>
+                    <li>Go to <strong>Settings &gt; API Keys</strong> and click "Generate Test Key". Copy the <code>key_id</code>.</li>
+                    <li>Include Razorpay SDK script: <code>&lt;script src="https://checkout.razorpay.com/v1/checkout.js"&gt;&lt;/script&gt;</code>.</li>
+                    <li>Initialize with your test key to open a beautiful dynamic UPI, Card, and Netbanking popup for customers.</li>
+                  </ol>
+                </div>
+              </div>
+
+              <div class="guide-accordion-item">
+                <div class="guide-accordion-header">
+                  <span class="icon">✨</span>
+                  <h4>Option 2: Free UPI QR Direct Integration (Free Forever, No Code APIs)</h4>
+                </div>
+                <div class="guide-accordion-body">
+                  <p>For zero-transaction-fee Indian UPI payments, you can generate standard UPI intent links directly on your dashboard without any middleman provider:</p>
+                  <pre><code>upi://pay?pa=yourvpa@upi&amp;pn=OwnerName&amp;am=DynamicAmount&amp;cu=INR</code></pre>
+                  <p>In your final code, generate a QR code pointing to this URL. Customers scan using GPAY, PhonePe, or Paytm. When they pay, funds hit your bank account instantly with 0% fee.</p>
+                </div>
+              </div>
+
+              <div class="guide-accordion-item">
+                <div class="guide-accordion-header">
+                  <span class="icon">🌍</span>
+                  <h4>Option 3: Stripe India developer keys</h4>
+                </div>
+                <div class="guide-accordion-body">
+                  <ol>
+                    <li>Create an account at <strong>stripe.com/in</strong>.</li>
+                    <li>Test mode is active by default. Copy your Publishable API key.</li>
+                    <li>Stripe works for card checkout. Razorpay remains superior for Indian UPI flows.</li>
+                  </ol>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <!-- Dynamic Modals System -->
+  
+  <!-- Check-In / Reservation Modal (for empty slots) -->
+  <div class="modal" id="checkin-modal">
+    <div class="modal-content glass-card">
+      <div class="modal-header">
+        <h3 id="checkin-modal-title">Check-In / Reserve Slot</h3>
+        <button class="modal-close-btn" onclick="closeModal('checkin-modal')">&times;</button>
+      </div>
+      <div class="modal-body">
+        <form id="modal-checkin-form">
+          <input type="hidden" id="modal-slot-id">
+          
+          <div class="modal-slot-info">
+            <span class="info-label">Assigned Slot:</span>
+            <span class="info-value highlighted" id="modal-slot-display">F1-C01</span>
+            <span class="info-label">Slot Type:</span>
+            <span class="info-value" id="modal-slot-type-display">🚗 Car Exclusive</span>
+          </div>
+
+          <div class="input-group">
+            <label for="modal-vehicle-plate">Vehicle Plate Number <span class="required">*</span></label>
+            <input type="text" id="modal-vehicle-plate" placeholder="e.g. DL 3C AC 1234" required style="text-transform: uppercase;">
+          </div>
+
+          <div class="input-group">
+            <label for="modal-action-type">Action</label>
+            <div class="custom-select-wrapper">
+              <select id="modal-action-type">
+                <option value="checkin">🚀 Check-In (Ticking starts)</option>
+                <option value="reserve">📅 Pre-Book / Reserve Slot</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="input-group" id="modal-reservation-name-group" style="display: none;">
+            <label for="modal-customer-name">Customer / Reserver Name</label>
+            <input type="text" id="modal-customer-name" placeholder="e.g. Rohit Sharma">
+          </div>
+
+          <button type="submit" class="btn btn-primary btn-full-width">Confirm Action</button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Checkout & Billing Modal -->
+  <div class="modal" id="checkout-modal">
+    <div class="modal-content glass-card wide-modal">
+      <div class="modal-header">
+        <h3>Outward Billing &amp; Payment Gateway</h3>
+        <button class="modal-close-btn" onclick="closeModal('checkout-modal')">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="checkout-layout">
+          <!-- Receipt / Billing Summary Panel -->
+          <div class="invoice-summary-panel">
+            <h4>🧾 Tax Invoice Summary</h4>
+            
+            <div class="invoice-details-grid">
+              <div class="invoice-row">
+                <span>Vehicle Number:</span>
+                <strong id="inv-plate">DL 3C AC 1234</strong>
+              </div>
+              <div class="invoice-row">
+                <span>Vehicle Type:</span>
+                <strong id="inv-type">Car</strong>
+              </div>
+              <div class="invoice-row">
+                <span>Assigned Slot:</span>
+                <strong id="inv-slot" class="highlighted">F1-C12</strong>
+              </div>
+              <hr class="invoice-divider">
+              <div class="invoice-row">
+                <span>Check-in Time:</span>
+                <span id="inv-checkin">26 May, 10:15 PM</span>
+              </div>
+              <div class="invoice-row">
+                <span>Check-out Time:</span>
+                <span id="inv-checkout">26 May, 10:21 PM</span>
+              </div>
+              <div class="invoice-row">
+                <span>Total Parked Time:</span>
+                <span id="inv-duration">6m 23s</span>
+              </div>
+              <div class="invoice-row" id="inv-buffer-row">
+                <span>Buffer Status:</span>
+                <span id="inv-buffer" class="text-green">🟢 Active (<30s Free)</span>
+              </div>
+              <hr class="invoice-divider">
+              <div class="invoice-row rate-calc-row">
+                <span>Rate Applied:</span>
+                <span id="inv-rate-calc">₹50/hour</span>
+              </div>
+              <div class="invoice-row grand-total-row">
+                <span>Grand Total:</span>
+                <span class="total-amount-display">₹<span id="inv-amount">0</span></span>
+              </div>
+            </div>
+
+            <!-- Sleek Time Travel Simulator (Operator Only) -->
+            <div class="time-simulator-box operator-only">
+              <h5>⏱️ Testing Tool: Simulate Time Travel</h5>
+              <p>Simulate hours of parking to test billing without waiting!</p>
+              <div class="simulator-buttons">
+                <button class="btn btn-sm btn-secondary" onclick="simulateTime(0.01)">⚡ 30s Buffer</button>
+                <button class="btn btn-sm btn-secondary" onclick="simulateTime(1)">+1 Hr</button>
+                <button class="btn btn-sm btn-secondary" onclick="simulateTime(3)">+3 Hrs</button>
+                <button class="btn btn-sm btn-secondary" onclick="simulateTime(24)">+24 Hrs</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Interactive Payment Portal -->
+          <div class="payment-portal-panel">
+            <h4>💳 Select Payment Gateway</h4>
+            
+            <div class="payment-tabs">
+              <button class="pay-tab active" data-paymethod="upi">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 17a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h18a2 2 0 0 1 2 2z"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
+                Indian UPI QR
+              </button>
+              <button class="pay-tab" data-paymethod="card">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
+                Credit / Debit Card
+              </button>
+              <button class="pay-tab operator-only" data-paymethod="cash">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+                Cash Checkout
+              </button>
+            </div>
+
+            <!-- UPI Payment Screen -->
+            <div class="pay-method-panel active" id="pay-panel-upi">
+              <div class="upi-container">
+                <p class="upi-instructions">Scan the secure UPI dynamic code using any Indian banking app (BHIM, GPAY, Paytm, PhonePe)</p>
+                <div class="qr-code-wrapper">
+                  <div class="qr-glow"></div>
+                  <!-- A gorgeous dynamic mockup QR using pure CSS/SVG -->
+                  <div class="mock-qr-code">
+                    <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+                      <rect width="100" height="100" fill="white"/>
+                      <!-- Outer Corners -->
+                      <rect x="5" y="5" width="25" height="25" fill="#0f172a" stroke="white" stroke-width="2"/>
+                      <rect x="9" y="9" width="17" height="17" fill="white"/>
+                      <rect x="13" y="13" width="9" height="9" fill="#0f172a"/>
+                      
+                      <rect x="70" y="5" width="25" height="25" fill="#0f172a" stroke="white" stroke-width="2"/>
+                      <rect x="74" y="9" width="17" height="17" fill="white"/>
+                      <rect x="78" y="13" width="9" height="9" fill="#0f172a"/>
+
+                      <rect x="5" y="70" width="25" height="25" fill="#0f172a" stroke="white" stroke-width="2"/>
+                      <rect x="9" y="74" width="17" height="17" fill="white"/>
+                      <rect x="13" y="78" width="9" height="9" fill="#0f172a"/>
+                      
+                      <!-- Inner Random Blocks (Simulating complex dynamic QR code) -->
+                      <rect x="35" y="10" width="10" height="5" fill="#0f172a"/>
+                      <rect x="50" y="5" width="5" height="15" fill="#0f172a"/>
+                      <rect x="40" y="25" width="15" height="5" fill="#0f172a"/>
+                      <rect x="10" y="40" width="10" height="10" fill="#0f172a"/>
+                      <rect x="25" y="35" width="5" height="15" fill="#0f172a"/>
+                      <rect x="35" y="45" width="20" height="5" fill="#0f172a"/>
+                      <rect x="60" y="30" width="10" height="15" fill="#0f172a"/>
+                      <rect x="80" y="35" width="15" height="5" fill="#0f172a"/>
+                      <rect x="75" y="45" width="5" height="15" fill="#0f172a"/>
+                      <rect x="15" y="60" width="15" height="5" fill="#0f172a"/>
+                      <rect x="35" y="60" width="5" height="20" fill="#0f172a"/>
+                      <rect x="45" y="70" width="20" height="5" fill="#0f172a"/>
+                      <rect x="55" y="60" width="15" height="10" fill="#0f172a"/>
+                      <rect x="70" y="70" width="10" height="10" fill="#0f172a"/>
+                      <rect x="85" y="65" width="10" height="25" fill="#0f172a"/>
+                      <rect x="35" y="85" width="15" height="5" fill="#0f172a"/>
+                      <rect x="55" y="80" width="10" height="10" fill="#0f172a"/>
+                    </svg>
+                    <div class="qr-brand-logo">₹</div>
+                  </div>
+                </div>
+                
+                <div class="payment-amount-prompt">
+                  Pay <span class="highlighted">₹<span id="upi-pay-val">0</span></span> to <strong class="text-primary">parkpro@axisbank</strong>
+                </div>
+
+                <button class="btn btn-primary btn-full-width" onclick="completePayment('UPI / QR Code')">
+                  Simulate QR Scan Success
+                </button>
+              </div>
+            </div>
+
+            <!-- Credit/Debit Card Screen (WITH 3D CARD FLIP) -->
+            <div class="pay-method-panel" id="pay-panel-card">
+              <div class="card-checkout-wrapper">
+                <!-- 3D Flipping Card Visualizer -->
+                <div class="card-3d-scene">
+                  <div class="credit-card-3d" id="credit-card-3d">
+                    <!-- Front Side -->
+                    <div class="card-face card-front">
+                      <div class="card-front-top">
+                        <div class="card-chip"></div>
+                        <span class="card-network">VISA</span>
+                      </div>
+                      <div class="card-number-display" id="card-num-disp">•••• •••• •••• ••••</div>
+                      <div class="card-front-bottom">
+                        <div class="card-holder-box">
+                          <span class="card-label">CARD HOLDER</span>
+                          <span class="card-val-display" id="card-holder-disp">YOUR NAME HERE</span>
+                        </div>
+                        <div class="card-expiry-box">
+                          <span class="card-label">EXPIRES</span>
+                          <span class="card-val-display" id="card-exp-disp">MM/YY</span>
+                        </div>
+                      </div>
+                    </div>
+                    <!-- Back Side -->
+                    <div class="card-face card-back">
+                      <div class="card-black-stripe"></div>
+                      <div class="card-signature-stripe">
+                        <div class="card-signature-text">AUTHORIZED SIGNATURE</div>
+                        <div class="card-cvv-box" id="card-cvv-disp">•••</div>
+                      </div>
+                      <div class="card-back-branding">Secure payment gateway powered by ParkPro</div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Form Controls -->
+                <form id="card-payment-form">
+                  <div class="input-group">
+                    <label for="card-num-input">Card Number</label>
+                    <input type="text" id="card-num-input" placeholder="4111 2222 3333 4444" maxlength="19" required>
+                  </div>
+                  
+                  <div class="input-group">
+                    <label for="card-holder-input">Card Holder Name</label>
+                    <input type="text" id="card-holder-input" placeholder="e.g. ROHIT SHARMA" required>
+                  </div>
+
+                  <div class="input-row">
+                    <div class="input-group">
+                      <label for="card-exp-input">Expiry Date</label>
+                      <input type="text" id="card-exp-input" placeholder="MM/YY" maxlength="5" required>
+                    </div>
+                    <div class="input-group">
+                      <label for="card-cvv-input">CVV</label>
+                      <input type="text" id="card-cvv-input" placeholder="123" maxlength="3" required>
+                    </div>
+                  </div>
+
+                  <button type="submit" class="btn btn-primary btn-full-width">
+                    Pay ₹<span id="card-pay-val">0</span> Securely
+                  </button>
+                </form>
+              </div>
+            </div>
+
+            <!-- Cash Checkout Screen -->
+            <div class="pay-method-panel" id="pay-panel-cash">
+              <div class="cash-container">
+                <div class="cash-icon-glow">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#eab308" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+                </div>
+                <h3>Cash Payment Collection</h3>
+                <p>Collect cash amount from the driver. Ensure invoice total matches cash in hand.</p>
+                
+                <div class="cash-calculation-box">
+                  <div class="cash-calc-row">
+                    <span>Invoice Amount:</span>
+                    <strong>₹<span id="cash-amt-invoice">0</span></strong>
+                  </div>
+                  <div class="cash-calc-row">
+                    <label for="cash-given">Amount Received: (₹)</label>
+                    <input type="number" id="cash-given" min="0" value="0">
+                  </div>
+                  <hr class="invoice-divider">
+                  <div class="cash-calc-row refund-row">
+                    <span>Return Change:</span>
+                    <strong class="text-green">₹<span id="cash-change">0</span></strong>
+                  </div>
+                </div>
+
+                <button class="btn btn-primary btn-full-width" onclick="completePayment('Cash')">
+                  Confirm Cash &amp; Print Receipt
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Print Receipt Modal -->
+  <div class="modal" id="receipt-modal">
+    <div class="modal-content glass-card receipt-modal-content">
+      <div class="modal-header hide-on-print">
+        <h3>Invoice Generated Successfully</h3>
+        <button class="modal-close-btn" onclick="closeModal('receipt-modal')">&times;</button>
+      </div>
+      <div class="modal-body">
+        <!-- Gorgeous Thermal Printer style Receipt -->
+        <div class="thermal-receipt" id="receipt-print-area">
+          <div class="receipt-header">
+            <h2>PARKPRO SERVICES LTD</h2>
+            <p>12/4 Connaught Place, New Delhi, India</p>
+            <p>GSTIN: 07AAAAA1111A1Z1</p>
+            <p class="receipt-phone">Ph: +91 98765 43210</p>
+          </div>
+          
+          <hr class="receipt-dash">
+          
+          <div class="receipt-meta">
+            <div><strong>RECEIPT ID:</strong> <span id="rec-id">PP-2026-9812</span></div>
+            <div><strong>DATE &amp; TIME:</strong> <span id="rec-date">26 May 2026, 10:21 PM</span></div>
+            <div><strong>CASHIER:</strong> <span id="rec-cashier">Administrator (Owner)</span></div>
+          </div>
+
+          <hr class="receipt-dash">
+
+          <div class="receipt-body">
+            <div class="receipt-line">
+              <span>VEHICLE PLATE NO.</span>
+              <strong id="rec-plate">DL 3C AC 1234</strong>
+            </div>
+            <div class="receipt-line">
+              <span>VEHICLE TYPE</span>
+              <strong id="rec-type">CAR</strong>
+            </div>
+            <div class="receipt-line">
+              <span>PARKED IN SLOT</span>
+              <strong id="rec-slot">F1-C12</strong>
+            </div>
+            <div class="receipt-line">
+              <span>CHECK-IN TIME</span>
+              <span id="rec-checkin">26 May 2026, 10:15 PM</span>
+            </div>
+            <div class="receipt-line">
+              <span>CHECK-OUT TIME</span>
+              <span id="rec-checkout">26 May 2026, 10:21 PM</span>
+            </div>
+            <div class="receipt-line">
+              <span>TOTAL DURATION</span>
+              <span id="rec-duration">6 minutes 23 seconds</span>
+            </div>
+          </div>
+
+          <hr class="receipt-dash">
+
+          <div class="receipt-payment-info">
+            <div class="receipt-line">
+              <span>BILLING TARIFF:</span>
+              <span id="rec-tariff">₹50/hour</span>
+            </div>
+            <div class="receipt-line font-large">
+              <strong>GRAND TOTAL (Incl. GST)</strong>
+              <strong>₹<span id="rec-amount">0</span></strong>
+            </div>
+            <div class="receipt-line">
+              <span>PAYMENT MODE:</span>
+              <strong id="rec-paymethod">UPI / QR Code</strong>
+            </div>
+            <div class="receipt-line">
+              <span>PAYMENT STATUS:</span>
+              <strong class="text-green">PAID SUCCESS</strong>
+            </div>
+          </div>
+
+          <hr class="receipt-dash">
+          
+          <div class="receipt-footer">
+            <h3>THANK YOU FOR VISITING!</h3>
+            <p>Drive Safely. Safe Journey Ahead.</p>
+            <!-- Mock dynamic barcode in SVG -->
+            <svg class="barcode" viewBox="0 0 100 20" xmlns="http://www.w3.org/2000/svg">
+              <rect width="100" height="20" fill="white"/>
+              <rect x="5" width="2" height="20" fill="black"/>
+              <rect x="9" width="3" height="20" fill="black"/>
+              <rect x="14" width="1" height="20" fill="black"/>
+              <rect x="17" width="2" height="20" fill="black"/>
+              <rect x="22" width="4" height="20" fill="black"/>
+              <rect x="28" width="2" height="20" fill="black"/>
+              <rect x="33" width="1" height="20" fill="black"/>
+              <rect x="36" width="3" height="20" fill="black"/>
+              <rect x="42" width="2" height="20" fill="black"/>
+              <rect x="47" width="1" height="20" fill="black"/>
+              <rect x="51" width="4" height="20" fill="black"/>
+              <rect x="57" width="2" height="20" fill="black"/>
+              <rect x="62" width="3" height="20" fill="black"/>
+              <rect x="68" width="1" height="20" fill="black"/>
+              <rect x="71" width="2" height="20" fill="black"/>
+              <rect x="76" width="4" height="20" fill="black"/>
+              <rect x="82" width="2" height="20" fill="black"/>
+              <rect x="86" width="1" height="20" fill="black"/>
+              <rect x="90" width="3" height="20" fill="black"/>
+              <rect x="95" width="2" height="20" fill="black"/>
+            </svg>
+            <p class="barcode-num">PP-62AF-2026</p>
+          </div>
+        </div>
+
+        <div class="receipt-actions-row hide-on-print">
+          <button class="btn btn-secondary" onclick="printReceipt()">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+            Print Thermal Receipt
+          </button>
+          <button class="btn btn-primary" onclick="closeModal('receipt-modal')">
+            Close &amp; Refresh Map
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
