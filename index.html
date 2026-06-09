@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ParkPro.in - Next-Gen Parking Management</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+  
+  <!-- Supabase JS SDK -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+  <nav class="navbar">
+    <div class="logo">
+      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: var(--primary-color)"><path d="M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9C18.7 10.6 16 10 16 10s-1.3-1.4-2.2-2.3c-.5-.4-1.1-.7-1.8-.7H5c-.6 0-1.1.4-1.4.9l-1.4 2.9A3.7 3.7 0 0 0 2 12v4c0 .6.4 1 1 1h2"/><circle cx="7" cy="17" r="2"/><path d="M9 17h6"/><circle cx="17" cy="17" r="2"/></svg>
+      ParkPro<span>.in</span>
+    </div>
+  </nav>
+
+  <main class="main-container">
+    <div class="hero-section">
+      <h1 class="hero-title">Intelligent Parking, Simplified.</h1>
+      <p class="hero-subtitle">
+        A real-time, highly scalable operational management system for modern multi-floor parking buildings. Manage slots, process payments, and track live occupancy in milliseconds.
+      </p>
+      
+      <div class="features-grid">
+        <div class="feature-card">
+          <div class="feature-icon">🚀</div>
+          <div class="feature-title">Real-Time Sync</div>
+          <div class="feature-desc">Live WebSocket updates keep the entire facility in perfect sync.</div>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">💰</div>
+          <div class="feature-desc">Automated rate calculations with simulated UPI & Card gateways.</div>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">🛡️</div>
+          <div class="feature-title">Secure Auth</div>
+          <div class="feature-desc">Role-based access control backed by Supabase Cloud.</div>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">📊</div>
+          <div class="feature-title">Live Analytics</div>
+          <div class="feature-desc">Instantly view floor capacities, revenue, and historical logs.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="auth-section">
+      <div class="auth-header">
+        <h2 class="auth-title">Welcome Back</h2>
+        <p style="color: var(--text-secondary); font-size: 0.875rem;">Access your dashboard to continue</p>
+      </div>
+
+      <div class="auth-toggle">
+        <button class="toggle-btn active" id="btn-tab-login">Sign In</button>
+        <button class="toggle-btn" id="btn-tab-signup">Sign Up</button>
+      </div>
+
+      <form id="auth-form">
+        <div class="form-group">
+          <label class="form-label">Email Address</label>
+          <input type="email" id="email" class="form-input" required placeholder="you@example.com">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Password</label>
+          <input type="password" id="password" class="form-input" required placeholder="••••••••">
+        </div>
+        
+        <button type="submit" class="btn-submit" id="btn-submit">Sign In</button>
+        <div id="auth-error" class="error-message"></div>
+      </form>
+    </div>
+  </main>
+
+  <script src="auth.js"></script>
+</body>
+</html>
